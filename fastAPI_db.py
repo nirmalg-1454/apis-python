@@ -5,6 +5,11 @@ import sqlite3
 # Create an instance of FastAPI
 app = FastAPI()
 db_file = "items.db"
+conn = sqlite3.connect(db_file)
+cursor = conn.cursor()
+cursor.execute("CREATE TABLE IF NOT EXISTS ITEMS(item_id Number, Description varchar2(50))")
+cursor.close()
+conn.close()
 
 def create_connection():
     conn = sqlite3.connect(db_file)
@@ -31,30 +36,41 @@ def read_item(item_id: int):
     if items:
         return [dict(item) for item in items]
     else:
-        return {item_id: "NOT FOUND"}
+        return {"message": f"Item with id {item_id} NOT FOUND"}
 
 @app.post("/items/<item_id>")
 def add_item(item_id: int, desc: str = None):
     conn = create_connection()
     cursor = conn.cursor()
-    cursor.execute(f"INSERT INTO items values({item_id}, {desc}")
+    cursor.execute(f"INSERT INTO items values({item_id}, '{desc}')")
     conn.commit()
     conn.close()
-    return {item_id: "Item Added Successfully"}
+    return {"message": f"Item with id {item_id} inserted Successfully"}
 
 @app.put("/items/{item_id}")
 def update_item(item_id: int, desc: str = None):
     conn = create_connection()
     cursor = conn.cursor()
-    cursor.execute(f"UPDATE items set description = {desc} where item_id = {item_id}")
+    cursor.execute(f"UPDATE items set description = '{desc}' where item_id = {item_id}")
     conn.commit()
     conn.close()
-    return {cursor.rowcount: f"Rows Updated Successfully for {item_id}"}
+    if cursor.rowcount > 0:
+        return {"message": f"{cursor.rowcount} Row(s) Updated Successfully for item id {item_id}"}
+    else:
+        return {"warning": f"Item with id {item_id} NOT FOUND."}
 
 @app.delete("/items/<item_id>")
 def delete_item(item_id: int):
-    fake_items_db.pop(item_id)
-    return {item_id: "Deleted Successfully"}
+    conn = create_connection()
+    cursor = conn.cursor()
+    cursor.execute(f"DELETE FROM items where item_id = {item_id}")
+    conn.commit()
+    conn.close()
+    conn.close()
+    if cursor.rowcount > 0:
+        return {"message": f"{cursor.rowcount} Row(s) deleted Successfully for item id {item_id}"}
+    else:
+        return {"warning": f"Item with id {item_id} NOT FOUND to delete"}
 
 # Route for serving the Swagger UI
 @app.get("/", include_in_schema=False)
